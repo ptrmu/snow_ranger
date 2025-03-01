@@ -73,7 +73,7 @@ def get_config() -> Config:
         "--log-level",
         type=str,
         choices=["DEBUG", "INFO", "WARNING", "ERROR"],
-        default="WARNING",
+        default="DEBUG",
         help="Set logging verbosity level",
     )
 
@@ -131,14 +131,8 @@ def display_config(config: Config, logger: logging.Logger):
 
 def read_from_ranger(config: Config, logger: logging.Logger):
     """
-    Opens the pigpio interface, reads a valid packet (Rxxxx format),
-    and cleans up before returning the result.
-
-    Returns:
-        dict: A dictionary containing "timestamp" and "data" fields.
-
-    Raises:
-        Exception: Rethrows any exceptions that occur during operation.
+    Reads multiple bytes into a buffer until a '\r'.
+    Checks if the buffer matches a predefined pattern.
     """
     pi = None  # Initialize pigpio instance variable
     try:
@@ -151,30 +145,36 @@ def read_from_ranger(config: Config, logger: logging.Logger):
         pi.bb_serial_read_open(config.serial_gpio, config.baud_rate, config.data_bits)
         pi.bb_serial_invert(config.serial_gpio, 1)  # Inverted mode flag
 
-        result = None  # Initialize result
+        buffer = b""  # Initialize empty buffer
+        result = None  # Variable to store the result after a match
 
-        # Loop until valid data is found
         while result is None:
-            # Read serial data from the GPIO
             count, data = pi.bb_serial_read(config.serial_gpio)
+            logger.debug(f"Read {count} bytes: {data}")
+
             if count > 0:
-                # Decode the received data and strip trailing spaces/newlines
-                line = data.decode('utf-8', errors='replace').strip()
+                buffer += data  # Append data to buffer
 
-                # Check if the line matches the "Rxxxx" pattern
-                match = re.match(config.pattern, line)
-                if match:
-                    # Extract the 4 digits
-                    digits = match.group(1)
+                # Check for carriage return '\r'
+                if b'\r' in buffer:
+                    # Decode buffer up to '\r' and reset it
+                    line, _, buffer = buffer.partition(b'\r')
+                    line = line.decode("utf-8", errors="replace").strip()
 
-                    # Get the current Unix timestamp in UTC
-                    unix_time = int(dt.datetime.now(dt.timezone.utc).timestamp())
+                    # Check if line matches the pattern
+                    match = re.match(config.pattern, line)
+                    if match:
+                        logger.debug(f"Pattern matched: {line}")
 
-                    # Create valid result as a dictionary
-                    result = {
-                        "timestamp": unix_time,
-                        "data": digits
-                    }
+                        # Extract data and timestamp
+                        digits = match.group(1)  # Assuming pattern contains 1 capturing group
+                        unix_time = int(dt.datetime.now(dt.timezone.utc).timestamp())
+
+                        # Create the result dictionary
+                        result = {
+                            "timestamp": unix_time,
+                            "data": digits,
+                        }
 
         return result  # Return the valid data
 
