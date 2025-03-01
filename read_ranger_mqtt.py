@@ -55,7 +55,7 @@ def get_config() -> Config:
     mqtt_group.add_argument(
         "--mqtt-broker",
         type=str,
-        default="localhost",
+        default="",
         help="MQTT Broker address",
     )
     mqtt_group.add_argument(
@@ -240,20 +240,18 @@ def send_to_mqtt(config: Config, payload_dict, logger: logging.Logger):
 
 
 def main():
-    # Parse command-line arguments and get a typed Config object
     config = get_config()
-
-    # Set up logging
     logger = get_logger(config.log_level)
-
-    # Display the configuration summary (only in DEBUG mode)
     display_config(config, logger)
 
     # Read data from the ranger once
     result = read_from_ranger(config, logger)
 
-    # Send the data to MQTT (routine expects a dictionary)
-    send_to_mqtt(config, result, logger)
+    if not config.mqtt_broker or not config.mqtt_port:
+        logger.warning("MQTT server configuration is missing. Outputting data to stdout.")
+        print(result)
+    else:
+        send_to_mqtt(config, result, logger)
 
 
 if __name__ == "__main__":
