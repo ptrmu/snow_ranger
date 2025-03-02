@@ -3,7 +3,7 @@ import dataclasses as dc
 import datetime as dt
 import json  # To handle JSON encoding
 import logging
-import paho
+import paho.mqtt.client as mqtt
 import pigpio
 import re
 
@@ -18,6 +18,8 @@ class Config:
     mqtt_broker: str
     mqtt_port: int
     mqtt_topic: str
+    mqtt_user: str
+    mqtt_password: str
     log_level: str
 
 
@@ -55,7 +57,7 @@ def get_config() -> Config:
     mqtt_group.add_argument(
         "--mqtt-broker",
         type=str,
-        default="",
+        default="192.168.1.39",
         help="MQTT Broker address",
     )
     mqtt_group.add_argument(
@@ -64,9 +66,11 @@ def get_config() -> Config:
     mqtt_group.add_argument(
         "--mqtt-topic",
         type=str,
-        default="default_topic",
+        default="snow_ranger/921a_18",
         help="MQTT topic to publish data to",
     )
+    mqtt_group.add_argument('--mqtt-user', help="Username for MQTT broker authentication", required=False)
+    mqtt_group.add_argument('--mqtt-password', help="Password for MQTT broker authentication", required=False)
 
     # Logging and verbosity
     parser.add_argument(
@@ -93,6 +97,8 @@ def get_config() -> Config:
         mqtt_broker=args.mqtt_broker,
         mqtt_port=args.mqtt_port,
         mqtt_topic=args.mqtt_topic,
+        mqtt_user=args.mqtt_user,
+        mqtt_password=args.mqtt_password,
         log_level=args.log_level,
     )
 
@@ -205,8 +211,11 @@ def send_to_mqtt(config: Config, payload_dict, logger: logging.Logger):
         topic: The topic to publish to.
         payload_dict: A dictionary to be sent as the payload (will be serialized to JSON).
     """
-    mqtt_client = paho.mqtt.client.Client()  # Create a new MQTT client instance
+    mqtt_client = mqtt.Client()  # Create a new MQTT client instance
     try:
+        if config.mqtt_user and config.mqtt_password:
+            mqtt_client.username_pw_set(config.mqtt_user, config.mqtt_password)
+
         # Connect to the MQTT broker
         mqtt_client.connect(config.mqtt_broker, config.mqtt_port, keepalive=60)
 
