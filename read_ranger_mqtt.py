@@ -66,7 +66,7 @@ def get_config() -> Config:
     mqtt_group.add_argument(
         "--mqtt-topic",
         type=str,
-        default="snow_ranger/921a_18",
+        default="snowdata/921a_18",
         help="MQTT topic to publish data to",
     )
     mqtt_group.add_argument('--mqtt-user', help="Username for MQTT broker authentication", required=False)
@@ -77,7 +77,7 @@ def get_config() -> Config:
         "--log-level",
         type=str,
         choices=["DEBUG", "INFO", "WARNING", "ERROR"],
-        default="DEBUG",
+        default="INFO",
         help="Set logging verbosity level",
     )
 
@@ -179,7 +179,7 @@ def read_from_ranger(config: Config, logger: logging.Logger):
                         # Create the result dictionary
                         result = {
                             "timestamp": unix_time,
-                            "data": digits,
+                            "ranger_distance": digits,
                         }
 
         return result  # Return the valid data
@@ -240,7 +240,7 @@ def send_to_mqtt(config: Config, payload_dict, logger: logging.Logger):
         # Disconnect from the MQTT broker
         try:
             mqtt_client.disconnect()
-            logger.info(f"Disconnected from MQTT broker '{config.mqtt_broker}:{config.mqtt_port}'.")
+            logger.debug(f"Disconnected from MQTT broker '{config.mqtt_broker}:{config.mqtt_port}'.")
         except Exception as e:
             logger.error(
                 f"Error during MQTT client cleanup for broker '{config.mqtt_broker}:{config.mqtt_port}': {e}"
@@ -257,8 +257,7 @@ def main():
     result = read_from_ranger(config, logger)
 
     if not config.mqtt_broker or not config.mqtt_port:
-        logger.warning("MQTT server configuration is missing. Outputting data to stdout.")
-        print(result)
+        logger.info(f"No MQTT broker setup for data from GPIO {config.serial_gpio}: {result}")
     else:
         send_to_mqtt(config, result, logger)
 
