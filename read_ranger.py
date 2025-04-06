@@ -20,7 +20,7 @@ def main():
 
         # Enable bit-bang serial mode with inverted signal (invert=1)
         pi.bb_serial_read_open(SERIAL_GPIO, BAUD_RATE, DATA_BITS)
-        pi.bb_serial_invert(SERIAL_GPIO, 1)  # Inverted mode flag
+#        pi.bb_serial_invert(SERIAL_GPIO, 1)  # Inverted mode flag
 
         while True:
             # Read serial data from the GPIO
